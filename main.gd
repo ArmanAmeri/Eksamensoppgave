@@ -116,9 +116,14 @@ func _on_connected_to_server() -> void:
 	connected = true
 	_add_chat_message("System","Connected to server!")
 	
-	# Send username to server
-	#_register_player.rpc_id(1, local_username)
-	_update_ui()
+	# sjekk for om Player eksisterer
+	if _check_for_player(local_username):
+		_update_ui()
+	else:
+		# Sender username til serveren
+		_register_player.rpc_id(1, local_username)
+		_update_ui()
+
 
 func _on_chat_input_changed(_text: String):
 	_update_ui()
@@ -151,3 +156,17 @@ func _register_player(username: String):
 	if is_host:
 		var sender_id = multiplayer.get_remote_sender_id()
 		insert_data(sender_id, username)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _check_for_player(username: String) -> bool:
+	var query = "SELECT COUNT(*) AS cnt FROM users WHERE username = ?"
+	if database.query_with_bindings(query, [username]):
+		var row = database.query_result[0]
+		var count = int(row["cnt"])
+		if count > 0:
+			return true
+		else:
+			return false
+	else:
+		printerr("query Unsuccessful")
+		return false
