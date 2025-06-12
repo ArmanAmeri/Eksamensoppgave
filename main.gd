@@ -5,35 +5,40 @@ var database : SQLite
 
 # Network setup
 var peer = ENetMultiplayerPeer.new()
-var port = 8910111
+var port = 8910
 var max_clients = 10
-var ip = "172.31.1.75"
+var ip = "172.31.1.77"
 
 # Game states
 var local_username: String
-var is_host: bool
-var is_connected: bool
+var is_host: bool = false
+var connected: bool = false
 
 # Kobler alle Nodes til koden
 @onready var username_input: LineEdit = $VBoxContainer/Username/UsernameInput
 @onready var join: Button = $VBoxContainer/ButtonContainer/Join
 @onready var host: Button = $VBoxContainer/ButtonContainer/Host
 @onready var connection_label: Label = $VBoxContainer/ConnectionLabel
+#Chat
+@onready var chat_display: TextEdit = $ChatContainer/ChatDisplay
+@onready var chat_input: LineEdit = $ChatContainer/ChatInputContainer/ChatInput
+@onready var chat_send: Button = $ChatContainer/ChatInputContainer/ChatSend
 
 
 func _ready() -> void:
 	# Setup SQLite
 	database = SQLite.new()
-	database.path = "res://Database/data.db"
+	database.path = "res://data.db"
 	database.open_db()
-	start_table("users")
+	create_sql_table("users")
 	
 	# Kobler Signaler til funksjoner i koden
 	join.pressed.connect(_on_join_pressed)
 	host.pressed.connect(_on_host_pressed)
+	chat_send.pressed.connect(_on_chat_send_pressed)
 	
-	# Kobler tekst inputs
-	username_input.text_changed.connect(_on_username_changed) 
+	# Chat Inputs
+	chat_input.text_changed.connect(_on_chat_input_changed)
 	
 	# connecter multiplayer signaler til koden
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -57,33 +62,74 @@ func _update_ui():
 	connection_label.text = "Status: " + ("Connected as " + ("Host" if is_host else "Client") if is_connected else "Disconnected")
 	
 	# Slå av/på UI Elementer
-	username_input.editable = not is_connected
-	host.disabled = is_connected or username_input.text.strip_edges().is_empty()
-	join.disabled = is_connected or username_input.text.strip_edges().is_empty()
+	username_input.editable = not connected
+	host.disabled = connected or username_input.text.strip_edges().is_empty()
+	join.disabled = connected or username_input.text.strip_edges().is_empty()
+	
+	# Chat
+	chat_input.editable = connected
+	chat_send.disabled = not connected or chat_input.text.strip_edges().is_empty()
 
+
+func _on_chat_send_pressed() -> void:
+	var message = chat_input.text.strip_edges()
+	if message.is_empty():
+		return
+	
+	# Send message to all peers
+	_send_chat_to_all.rpc(local_username, message)
+	chat_input.text = ""
+	_update_ui()
+
+@rpc("any_peer", "call_local", "reliable")
+func _send_chat_to_all(username: String, message: String):
+	_add_chat_message(username, message)
+
+func _add_chat_message(username: String, message: String):
+	# Formatter mellingen med local username og mellingen som skal sendes
+	var formatted_message = username + ": " + message
+	chat_display.text += formatted_message + "\n"
+	
+	# Auto-scroller til bunnen
+	chat_display.scroll_vertical = chat_display.get_line_count()
 
 func _on_host_pressed() -> void:
-	pass
+	local_username = username_input.text.strip_edges()
+	
+	var error = peer.create_server(port, max_clients)
+	if error == OK:
+		multiplayer.multiplayer_peer = peer
+		connected = true
+		is_host = true
+		print("Startet Server på: " + str(port))
+		_update_ui()
+	else:
+		printerr("ERROR: " + str(error))
 
-func _on_peer_connected() -> void:
-	pass
+func _on_peer_connected(id: int) -> void:
+	_add_chat_message("System", "Player " + str(id) + " connected")
 
 func _on_peer_disconnected() -> void:
 	pass
 
 func _on_connected_to_server() -> void:
-	pass
+	connected = true
+	_add_chat_message("System","Connected to server!")
 	
+	# Send username to server
+	#_register_player.rpc_id(1, local_username)
+	_update_ui()
+
+func _on_chat_input_changed(_text: String):
+	_update_ui()
+
 func _on_connection_failed() -> void:
 	pass
 	
 func _on_server_disconnected() -> void:
 	pass
 
-func _on_username_changed() -> void:
-	_update_ui()
-
-func start_table(tablename: String) -> void:
+func create_sql_table(tablename: String) -> void:
 	var table = {
 		"id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
 		"Uid": {"data_type": "int"},
@@ -91,9 +137,17 @@ func start_table(tablename: String) -> void:
 	}
 	database.create_table(tablename, table)
 
+#_add_chat_message("System", username + " joined the game")
+
 func insert_data(Uid: int, username: String) -> void:
 	var data = {
 		"Uid": Uid,
 		"username": username
 	}
 	database.insert_row("users", data)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _register_player(username: String):
+	if is_host:
+		var sender_id = multiplayer.get_remote_sender_id()
+		insert_data(sender_id, username)

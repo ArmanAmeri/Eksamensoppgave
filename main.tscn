@@ -50,3 +50,31 @@ text = "HOST
 
 [node name="ConnectionLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+
+[node name="ChatContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -21.5
+offset_right = 80.0
+offset_bottom = 21.5
+grow_vertical = 2
+alignment = 1
+
+[node name="ChatDisplay" type="TextEdit" parent="ChatContainer"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+wrap_mode = 1
+
+[node name="ChatInputContainer" type="HBoxContainer" parent="ChatContainer"]
+layout_mode = 2
+
+[node name="ChatInput" type="LineEdit" parent="ChatContainer/ChatInputContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+placeholder_text = "Write Text Here..."
+
+[node name="ChatSend" type="Button" parent="ChatContainer/ChatInputContainer"]
+layout_mode = 2
+text = "SEND"
