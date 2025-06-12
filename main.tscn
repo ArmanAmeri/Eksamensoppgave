@@ -16,21 +16,33 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -20.0
-offset_right = 20.0
-offset_bottom = 40.0
+offset_left = -144.0
+offset_right = 144.0
+offset_bottom = 137.0
 grow_horizontal = 2
 
 [node name="Username" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
-alignment = 1
+alignment = 2
 
 [node name="UsernameLabel" type="Label" parent="VBoxContainer/Username"]
 layout_mode = 2
 text = "Enter Username: "
 
 [node name="UsernameInput" type="LineEdit" parent="VBoxContainer/Username"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+
+[node name="IPContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+alignment = 2
+
+[node name="IPLabel" type="Label" parent="VBoxContainer/IPContainer"]
+layout_mode = 2
+text = "IP Adresse: "
+
+[node name="IPInput" type="LineEdit" parent="VBoxContainer/IPContainer"]
+custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 
 [node name="ButtonContainer" type="HBoxContainer" parent="VBoxContainer"]

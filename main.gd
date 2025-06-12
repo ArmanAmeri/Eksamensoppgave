@@ -7,7 +7,7 @@ var database : SQLite
 var peer = ENetMultiplayerPeer.new()
 var port = 8910
 var max_clients = 10
-var ip = "172.31.1.77"
+var ip = "172.31.1.75"
 
 # Game states
 var local_username: String
@@ -19,6 +19,7 @@ var connected: bool = false
 @onready var join: Button = $VBoxContainer/ButtonContainer/Join
 @onready var host: Button = $VBoxContainer/ButtonContainer/Host
 @onready var connection_label: Label = $VBoxContainer/ConnectionLabel
+@onready var ip_input: LineEdit = $VBoxContainer/IPContainer/IPInput
 #Chat
 @onready var chat_display: TextEdit = $ChatContainer/ChatDisplay
 @onready var chat_input: LineEdit = $ChatContainer/ChatInputContainer/ChatInput
@@ -46,12 +47,16 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	
+	
+	# Setter defualt IP
+	ip_input.text = ip
 
 func _on_join_pressed() -> void:
 	local_username = username_input.text.strip_edges()
 	
 	# Connect til server
-	var error = peer.create_client(ip, port)
+	var error = peer.create_client(ip_input.text, port)
 	if error == OK:
 		multiplayer.multiplayer_peer = peer
 		print("Connecting to " + ip + ":" + str(port))
