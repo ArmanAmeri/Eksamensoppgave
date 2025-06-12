@@ -1,5 +1,7 @@
 extends Control
 
+# Database
+var database : SQLite
 
 # Network setup
 var peer = ENetMultiplayerPeer.new()
@@ -20,6 +22,12 @@ var is_connected: bool
 
 
 func _ready() -> void:
+	# Setup SQLite
+	database = SQLite.new()
+	database.path = "res://Database/data.db"
+	database.open_db()
+	start_table("users")
+	
 	# Kobler Signaler til funksjoner i koden
 	join.pressed.connect(_on_join_pressed)
 	host.pressed.connect(_on_host_pressed)
@@ -34,15 +42,6 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
-func _update_ui():
-	connection_label.text = "Status: " + ("Connected as " + ("Host" if is_host else "Client") if is_connected else "Disconnected")
-	
-	# Slå av/på UI Elementer
-	username_input.editable = not is_connected
-	host.disabled = is_connected or username_input.text.strip_edges().is_empty()
-	join.disabled = is_connected or username_input.text.strip_edges().is_empty()
-
-
 func _on_join_pressed() -> void:
 	local_username = username_input.text.strip_edges()
 	
@@ -53,6 +52,15 @@ func _on_join_pressed() -> void:
 		print("Connecting to " + ip + ":" + str(port))
 	else:
 		printerr("Error: " + str(error))
+
+func _update_ui():
+	connection_label.text = "Status: " + ("Connected as " + ("Host" if is_host else "Client") if is_connected else "Disconnected")
+	
+	# Slå av/på UI Elementer
+	username_input.editable = not is_connected
+	host.disabled = is_connected or username_input.text.strip_edges().is_empty()
+	join.disabled = is_connected or username_input.text.strip_edges().is_empty()
+
 
 func _on_host_pressed() -> void:
 	pass
@@ -74,3 +82,18 @@ func _on_server_disconnected() -> void:
 
 func _on_username_changed() -> void:
 	_update_ui()
+
+func start_table(tablename: String) -> void:
+	var table = {
+		"id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
+		"Uid": {"data_type": "int"},
+		"username": {"data_type": "text"}
+	}
+	database.create_table(tablename, table)
+
+func insert_data(Uid: int, username: String) -> void:
+	var data = {
+		"Uid": Uid,
+		"username": username
+	}
+	database.insert_row("users", data)
