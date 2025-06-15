@@ -121,13 +121,8 @@ func _on_connected_to_server() -> void:
 	connected = true
 	_add_chat_message("System","Connected to server!")
 	
-	# sjekk for om Player eksisterer
-	if _check_for_player(local_username):
-		_update_ui()
-	else:
-		# Sender username til serveren
-		_register_player.rpc_id(1, local_username)
-		_update_ui()
+	 # Send forespørsel om brukeren finnes
+	_register_player.rpc_id(1, local_username)
 
 
 func _on_chat_input_changed(_text: String):
@@ -142,16 +137,14 @@ func _on_server_disconnected() -> void:
 func create_sql_table(tablename: String) -> void:
 	var table = {
 		"id": {"data_type": "int", "primary_key": true, "not_null": true, "auto_increment": true},
-		"Uid": {"data_type": "int"},
 		"username": {"data_type": "text"}
 	}
 	database.create_table(tablename, table)
 
 #_add_chat_message("System", username + " joined the game")
 
-func insert_data(Uid: int, username: String) -> void:
+func insert_data(username: String) -> void:
 	var data = {
-		"Uid": Uid,
 		"username": username
 	}
 	database.insert_row("users", data)
@@ -159,19 +152,38 @@ func insert_data(Uid: int, username: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _register_player(username: String):
 	if is_host:
-		var sender_id = multiplayer.get_remote_sender_id()
-		insert_data(sender_id, username)
+		insert_data(username)
 
 @rpc("any_peer", "call_remote", "reliable")
-func _check_for_player(username: String) -> bool:
+func _request_player_id(username: String):
+	# Bare host (authority) kjører denne
+	if not is_host:
+		return
+	var exists = false  # lokalt bool
 	var query = "SELECT COUNT(*) AS cnt FROM users WHERE username = ?"
 	if database.query_with_bindings(query, [username]):
 		var row = database.query_result[0]
 		var count = int(row["cnt"])
 		if count > 0:
-			return true
-		else:
-			return false
+			exists = true
 	else:
 		printerr("query Unsuccessful")
-		return false
+	
+	var sender = multiplayer.get_remote_sender_id()
+	# send svar tilbake til klient
+	rpc_id(sender, "_on_player_exists_response", exists, username)
+
+@rpc("any_peer", "call_local", "reliable")
+func _on_player_exists_response(exists: bool, username: String):
+	if exists:
+		print("Bruker finnes!")
+		# hent ID og sett
+		_request_player_id.rpc_id(1, local_username)
+		if not is_host:
+			return
+		var id = _get_id_of_user(username)
+		var sender = multiplayer.get_remote_sender_id()
+		rpc_id(sender, "_on_player_id_response", id)
+	else:
+		print("Ny bruker, registrerer")
+		_register_player.rpc_id(1, local_username)
